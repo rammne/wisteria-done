@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wisteria</title>
+    <link rel="icon" type="image/png" href="/images/icon.png">
+    <link rel="icon" type="image/x-icon" href="/images/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <aside>
+        <h1 id="icon"><img src="/images/icon.png" alt="icon"></h1>
+        <div id="btn-nav">
+            <a href="/"><img src="/images/home.png" alt="home"></a>
+            <a href="#" id="add-post-btn"><img src="/images/post.png" alt="post"></a>
+            <a href="/profile"><img src="/images/profile.png" alt="profile"></a>
+        </div>
+        <div class="user-info">
+            <a href="/logout" class="logout-btn">❕</a>
+        </div>
+    </aside>
+
+    <main>
+        <div id="post-modal">
+            <form action="/submit-post" method="post" id="post-form" enctype="multipart/form-data">
+                <div id="modal-content">
+                    <h1>New Post</h1>
+                    <div class="media-preview" id="media-preview"></div>
+                    <div class="media-upload">
+                        <label for="media-upload" class="media-upload-label">
+                            <i class="fas fa-image"></i> Add Media
+                        </label>
+                        <input type="file" id="media-upload" name="media" accept="image/*,video/*" style="display: none;">
+                    </div>
+                    <textarea name="content" id="post" placeholder="Write a caption..." required></textarea>
+                    <div id="modal-btns">
+                        <button id="close-modal-btn" class="modal-btn" type="button">Cancel</button>
+                        <button type="submit" id="post-content-btn" class="modal-btn">Post</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <section id="content-section">
+            <% if (posts.length !== 0) { %>
+                <h1 id="content-header">Posts for today</h1>
+            <% } else { %>
+                <h1 id="no-post-msg">There are no posts today.</h1>
+            <% } %>
+
+            <% posts.forEach(post => { %>
+                <article class="section__content-section">
+                    <div class="post-header">
+                        <div class="post-author-info">
+                            <a href="/profile/<%= post.authorId %>" class="post-author">
+                                @<%= post.authorUsername %>
+                            </a>
+                            <p class="post-time"><%= post.timestamp ? new Date(post.timestamp).toLocaleString() : 'Just now' %></p>
+                        </div>
+                    </div>
+                    <a href="/post/<%= post.id %>" class="post-content-link">
+                        <% if (post.mediaUrl) { %>
+                            <div class="post-media">
+                                <% if (post.mediaType && post.mediaType.startsWith('image/')) { %>
+                                    <img src="<%= post.mediaUrl %>" alt="Post media">
+                                <% } else if (post.mediaType && post.mediaType.startsWith('video/')) { %>
+                                    <video src="<%= post.mediaUrl %>" controls></video>
+                                <% } %>
+                            </div>
+                        <% } %>
+                        <p class="content">
+                            <%= post.content || post.value %>
+                        </p>
+                    </a>
+                    <div class="post-actions">
+                        <button class="comment-btn" onclick="toggleCommentForm('<%= post.id %>')">
+                            <i class="far fa-comment"></i> Comment
+                        </button>
+                    </div>
+
+                    <div id="comment-form-<%= post.id %>" class="comment-form hidden">
+                        <form action="/posts/<%= post.id %>/comments" method="POST">
+                            <textarea name="content" placeholder="Write a comment..." required></textarea>
+                            <button type="submit" class="modal-btn">Comment</button>
+                        </form>
+                    </div>
+
+                    <div class="comments">
+                        <% (post.comments || []).forEach(comment => { %>
+                            <div class="comment-section">
+                                <div class="comment-header">
+                                    <p class="comment-author">@<%= comment.authorEmail.split('@')[0] %></p>
+                                    <p class="comment-time"><%= new Date(comment.timestamp).toLocaleString() %></p>
+                                </div>
+                                <p class="comment-content"><%= comment.content %></p>
+                                
+                                <div class="post-actions">
+                                    <button class="reply-btn" onclick="toggleReplyForm('<%= post.id %>', '<%= comment.id %>')">
+                                        <i class="far fa-reply"></i> Reply
+                                    </button>
+                                </div>
+
+                                <div id="reply-form-<%= post.id %>-<%= comment.id %>" class="reply-form hidden">
+                                    <form action="/posts/<%= post.id %>/comments/<%= comment.id %>/replies" method="POST">
+                                        <textarea name="content" placeholder="Write a reply..." required></textarea>
+                                        <button type="submit" class="modal-btn">Reply</button>
+                                    </form>
+                                </div>
+
+                                <div class="replies">
+                                    <% (comment.replies || []).forEach(reply => { %>
+                                        <div class="reply-section">
+                                            <div class="reply-header">
+                                                <p class="reply-author">@<%= reply.authorEmail.split('@')[0] %></p>
+                                                <p class="reply-time"><%= new Date(reply.timestamp).toLocaleString() %></p>
+                                            </div>
+                                            <p class="reply-content"><%= reply.content %></p>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                </article>
+            <% }); %>
+        </section>
+    </main>
+
+    <script>
+        const addPostBtn = document.getElementById('add-post-btn');
+        const postModal = document.getElementById('post-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const mediaUpload = document.getElementById('media-upload');
+        const mediaPreview = document.getElementById('media-preview');
+        const postForm = document.getElementById('post-form');
+
+        addPostBtn.addEventListener('click', () => {
+            postModal.style.display = 'block';
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            postModal.style.display = 'none';
+            resetForm();
+        });
+
+        function resetForm() {
+            postForm.reset();
+            mediaPreview.innerHTML = '';
+            mediaPreview.style.display = 'none';
+        }
+
+        mediaUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    mediaPreview.style.display = 'block';
+                    if (file.type.startsWith('image/')) {
+                        mediaPreview.innerHTML = `
+                            <div class="preview-container">
+                                <img src="${e.target.result}" alt="Preview">
+                                <button type="button" class="remove-media" onclick="removeMedia()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `;
+                    } else if (file.type.startsWith('video/')) {
+                        mediaPreview.innerHTML = `
+                            <div class="preview-container">
+                                <video src="${e.target.result}" controls></video>
+                                <button type="button" class="remove-media" onclick="removeMedia()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function removeMedia() {
+            mediaUpload.value = '';
+            mediaPreview.innerHTML = '';
+            mediaPreview.style.display = 'none';
+        }
+
+        function toggleCommentForm(postId) {
+            const form = document.getElementById(`comment-form-${postId}`);
+            form.classList.toggle('hidden');
+        }
+
+        function toggleReplyForm(postId, commentId) {
+            const form = document.getElementById(`reply-form-${postId}-${commentId}`);
+            form.classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post - Wisteria</title>
+    <link rel="icon" type="image/png" href="/images/icon.png">
+    <link rel="icon" type="image/x-icon" href="/images/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <aside>
+        <h1 id="icon"><img src="/images/icon.png" alt="icon"></h1>
+        <div id="btn-nav">
+            <a href="/"><img src="/images/home.png" alt="home"></a>
+            <a href="#" id="add-post-btn"><img src="/images/post.png" alt="post"></a>
+            <a href="/profile"><img src="/images/profile.png" alt="profile"></a>
+        </div>
+        <div class="user-info">
+            <a href="/logout" class="logout-btn">❕</a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="post-container">
+            <article class="section__content-section">
+                <div class="post-header">
+                    <div class="post-author-info">
+                        <a href="/profile/<%= post.authorId %>" class="post-author">
+                            @<%= post.authorUsername || post.authorEmail.split('@')[0] %>
+                        </a>
+                        <p class="post-time"><%= new Date(post.timestamp).toLocaleString() %></p>
+                    </div>
+                    <% if (post.authorId === user.uid) { %>
+                        <div class="post-actions">
+                            <button class="edit-post-btn" onclick="editPost('<%= post.id %>')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="delete-post-btn" onclick="deletePost('<%= post.id %>')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    <% } %>
+                </div>
+                
+                <% if (post.mediaUrl) { %>
+                    <div class="post-media">
+                        <% if (post.mediaType && post.mediaType.startsWith('image/')) { %>
+                            <img src="<%= post.mediaUrl %>" alt="Post media">
+                        <% } else if (post.mediaType && post.mediaType.startsWith('video/')) { %>
+                            <video src="<%= post.mediaUrl %>" controls></video>
+                        <% } %>
+                    </div>
+                <% } %>
+                
+                <p class="content"><%= post.content %></p>
+
+                <div class="post-actions">
+                    <button class="comment-btn" onclick="toggleCommentForm('<%= post.id %>')">
+                        <i class="far fa-comment"></i> Comment
+                    </button>
+                </div>
+
+                <div id="comment-form-<%= post.id %>" class="comment-form hidden">
+                    <form action="/posts/<%= post.id %>/comments" method="POST">
+                        <textarea name="content" placeholder="Write a comment..." required></textarea>
+                        <button type="submit" class="modal-btn">Comment</button>
+                    </form>
+                </div>
+
+                <div class="comments">
+                    <% (post.comments || []).forEach(comment => { %>
+                        <div class="comment-section">
+                            <div class="comment-header">
+                                <p class="comment-author">@<%= comment.authorEmail.split('@')[0] %></p>
+                                <p class="comment-time"><%= new Date(comment.timestamp).toLocaleString() %></p>
+                            </div>
+                            <p class="comment-content"><%= comment.content %></p>
+                            
+                            <div class="post-actions">
+                                <button class="reply-btn" onclick="toggleReplyForm('<%= post.id %>', '<%= comment.id %>')">
+                                    <i class="far fa-reply"></i> Reply
+                                </button>
+                            </div>
+
+                            <div id="reply-form-<%= post.id %>-<%= comment.id %>" class="reply-form hidden">
+                                <form action="/posts/<%= post.id %>/comments/<%= comment.id %>/replies" method="POST">
+                                    <textarea name="content" placeholder="Write a reply..." required></textarea>
+                                    <button type="submit" class="modal-btn">Reply</button>
+                                </form>
+                            </div>
+
+                            <div class="replies">
+                                <% (comment.replies || []).forEach(reply => { %>
+                                    <div class="reply-section">
+                                        <div class="reply-header">
+                                            <p class="reply-author">@<%= reply.authorEmail.split('@')[0] %></p>
+                                            <p class="reply-time"><%= new Date(reply.timestamp).toLocaleString() %></p>
+                                        </div>
+                                        <p class="reply-content"><%= reply.content %></p>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            </article>
+        </div>
+
+        <!-- Edit Post Modal -->
+        <div id="edit-post-modal" class="modal">
+            <div class="modal-content">
+                <h2>Edit Post</h2>
+                <form id="edit-post-form" action="/edit-post" method="POST">
+                    <input type="hidden" name="postId" id="edit-post-id">
+                    <div class="form-group">
+                        <textarea name="content" id="edit-post-content" required></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="profile-btn">Save Changes</button>
+                        <button type="button" class="profile-btn secondary" onclick="closeEditModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function editPost(postId) {
+            const modal = document.getElementById('edit-post-modal');
+            const postContent = document.querySelector('.content').textContent;
+            
+            document.getElementById('edit-post-id').value = postId;
+            document.getElementById('edit-post-content').value = postContent;
+            modal.style.display = 'block';
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-post-modal').style.display = 'none';
+        }
+
+        function deletePost(postId) {
+            if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+                fetch(`/delete-post/${postId}`, {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.href = '/';
+                    }
+                });
+            }
+        }
+
+        function toggleCommentForm(postId) {
+            const form = document.getElementById(`comment-form-${postId}`);
+            form.classList.toggle('hidden');
+        }
+
+        function toggleReplyForm(postId, commentId) {
+            const form = document.getElementById(`reply-form-${postId}-${commentId}`);
+            form.classList.toggle('hidden');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('edit-post-modal');
+            if (event.target === modal) {
+                closeEditModal();
+            }
+        }
+    </script>
+</body>
+</html> 

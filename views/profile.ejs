@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Wisteria</title>
+    <link rel="icon" type="image/png" href="/images/icon.png">
+    <link rel="icon" type="image/x-icon" href="/images/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <aside>
+        <h1 id="icon"><img src="/images/icon.png" alt="icon"></h1>
+        <div id="btn-nav">
+            <a href="/"><img src="/images/home.png" alt="home"></a>
+            <a href="#" id="add-post-btn"><img src="/images/post.png" alt="post"></a>
+            <a href="/profile" class="active"><img src="/images/profile.png" alt="profile"></a>
+        </div>
+        <div class="user-info">
+            <a href="/logout" class="logout-btn">❕</a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="profile-container">
+            <div class="profile-header">
+                <div class="profile-info">
+                    <h1>@<%= profileUser.username || profileUser.email.split('@')[0] %></h1>
+                    <p class="profile-email"><%= profileUser.email %></p>
+                    <% if (isOwnProfile) { %>
+                        <button id="edit-username-btn" class="profile-btn">
+                            <i class="fas fa-edit"></i> Edit Username
+                        </button>
+                    <% } %>
+                </div>
+                <div id="edit-username-form" class="hidden">
+                    <form action="/update-username" method="POST">
+                        <div class="form-group">
+                            <input type="text" name="username" placeholder="New username" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="profile-btn">Save</button>
+                            <button type="button" id="cancel-edit-btn" class="profile-btn secondary">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="profile-content">
+                <h2>Posts</h2>
+                <div class="posts-grid">
+                    <% if (userPosts.length === 0) { %>
+                        <p class="no-posts">No posts yet.</p>
+                    <% } else { %>
+                        <% userPosts.forEach(post => { %>
+                            <a href="/post/<%= post.id %>" class="post-card" data-post-id="<%= post.id %>">
+                                <% if (post.mediaUrl) { %>
+                                    <div class="post-media">
+                                        <% if (post.mediaType && post.mediaType.startsWith('image/')) { %>
+                                            <img src="<%= post.mediaUrl %>" alt="Post media">
+                                        <% } else if (post.mediaType && post.mediaType.startsWith('video/')) { %>
+                                            <video src="<%= post.mediaUrl %>" controls></video>
+                                        <% } %>
+                                    </div>
+                                <% } %>
+                                <div class="post-content">
+                                    <p><%= post.content %></p>
+                                    <p class="post-time"><%= new Date(post.timestamp).toLocaleString() %></p>
+                                </div>
+                                <% if (isOwnProfile) { %>
+                                    <div class="post-actions">
+                                        <button class="edit-post-btn" onclick="event.preventDefault(); editPost('<%= post.id %>')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="delete-post-btn" onclick="event.preventDefault(); deletePost('<%= post.id %>')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                <% } %>
+                            </a>
+                        <% }); %>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Post Modal -->
+        <div id="edit-post-modal" class="modal">
+            <div class="modal-content">
+                <h2>Edit Post</h2>
+                <form id="edit-post-form" action="/edit-post" method="POST">
+                    <input type="hidden" name="postId" id="edit-post-id">
+                    <div class="form-group">
+                        <textarea name="content" id="edit-post-content" required></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="profile-btn">Save Changes</button>
+                        <button type="button" class="profile-btn secondary" onclick="closeEditModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Edit Username
+        const editUsernameBtn = document.getElementById('edit-username-btn');
+        const editUsernameForm = document.getElementById('edit-username-form');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+
+        editUsernameBtn.addEventListener('click', () => {
+            editUsernameForm.classList.remove('hidden');
+            editUsernameBtn.classList.add('hidden');
+        });
+
+        cancelEditBtn.addEventListener('click', () => {
+            editUsernameForm.classList.add('hidden');
+            editUsernameBtn.classList.remove('hidden');
+        });
+
+        // Edit Post
+        function editPost(postId) {
+            const modal = document.getElementById('edit-post-modal');
+            const postCard = document.querySelector(`.post-card[data-post-id="${postId}"]`);
+            const postContent = postCard.querySelector('.post-content p').textContent;
+            
+            document.getElementById('edit-post-id').value = postId;
+            document.getElementById('edit-post-content').value = postContent;
+            modal.style.display = 'block';
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-post-modal').style.display = 'none';
+        }
+
+        // Delete Post
+        function deletePost(postId) {
+            if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+                fetch(`/delete-post/${postId}`, {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('edit-post-modal');
+            if (event.target === modal) {
+                closeEditModal();
+            }
+        }
+    </script>
+</body>
+</html> 
